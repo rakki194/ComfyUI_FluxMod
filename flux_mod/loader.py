@@ -1,4 +1,5 @@
 import torch
+import torch.nn as nn
 from safetensors.torch import safe_open
 from .model import FluxParams, FluxMod
 from .layers import Approximator
@@ -55,8 +56,17 @@ def load_selected_keys(filename, exclude_keywords=[]):
     return tensors
 
 
+def cast_layers(module, layer_type, dtype):
+    for child_name, child in module.named_children():
+        if isinstance(child, layer_type):
+            # Cast to the specified dtype
+            child.to(dtype=dtype)
+        else:
+            # Recursively apply to child modules
+            cast_layers(child, layer_type, dtype)
 
-def load_flux_mod(model_path, timestep_guidance_path):
+
+def load_flux_mod(model_path, timestep_guidance_path, linear_dtypes=torch.bfloat16):
 
     # just load safetensors here
     state_dict = load_selected_keys(model_path, ["mod", "time_in", "guidance_in", "vector_in"])
@@ -97,11 +107,13 @@ def load_flux_mod(model_path, timestep_guidance_path):
     model.diffusion_model = FluxMod(params=params)
 
     model.diffusion_model.load_state_dict(state_dict)
+    cast_layers(model.diffusion_model, nn.Linear, dtype=linear_dtypes)
     model.diffusion_model.distilled_guidance_layer = Approximator(64, 3072, 5120, 4)
     model.diffusion_model.distilled_guidance_layer.load_state_dict(timestep_state_dict)
     model.diffusion_model.dtype = unet_dtype
     model.diffusion_model.eval()
     model.diffusion_model.to(unet_dtype)
+    model.diffusion_model
 
     model_patcher = comfy.model_patcher.ModelPatcher(
         model,
