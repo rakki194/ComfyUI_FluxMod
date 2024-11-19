@@ -1,7 +1,8 @@
 # flux-mod
 flux dev distilled (8.8B)
 
-[distillated layer addon](https://huggingface.co/lodestones/distillate)
+[distillated layer addon](https://huggingface.co/lodestone-horizon/flux_distillate/tree/main)
+
 Download the highest numbered safetensors file. (higher step count)
 
 # workflow
