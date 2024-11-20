@@ -1,5 +1,5 @@
 # flux-mod
-flux dev distilled (8.8B)
+flux dev / schnell (8.8B)
 
 [distillated layer addon](https://huggingface.co/lodestone-horizon/flux_distillate/tree/main)
 
