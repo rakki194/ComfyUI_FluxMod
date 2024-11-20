@@ -1,7 +1,7 @@
 # flux-mod
 flux dev / schnell (8.8B)
 
-[distillated layer addon](https://huggingface.co/lodestone-horizon/flux_distillate/tree/main)
+[modulation layer addon](https://huggingface.co/lodestone-horizon/flux_distillate/tree/main](https://huggingface.co/lodestone-horizon/flux-essence)
 
 Download the highest numbered safetensors file. (higher step count)
 
