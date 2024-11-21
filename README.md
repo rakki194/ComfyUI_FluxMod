@@ -100,6 +100,11 @@ Testing shows minimal quality degradation in most cases. The most notable except
 You don't have to use this over regular quantisation! You can combine them, or if you don't want to use quantisation at all and you have enough VRAM, you can also just stick with bf16. If you combine quantisation, you can make the model even smaller and allow it to run on consumer hardware.
 </details>
 
+<details>
+<summary><b>I tried exporting/saving this model and I got an error?</b></summary>
+This model has a completely different architecture compared to the original Flux and none of the current methods for exporting/saving models would support it. This is why we needed to have this custom node created in the first place, since otherwise it wouldn't load properly.
+</details>
+
 ## Support
 
 Need help? Join our [Discord community](https://discord.gg/UxBAMcpqDU) for support and discussions.
