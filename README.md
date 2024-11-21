@@ -17,6 +17,7 @@ ComfyUI_FluxMod acts as a plugin for Flux, enabling you to run Flux Dev and Flux
 - [Usage](#usage)
 - [Node Information](#node-information)
 - [Quantization Guide](#quantization-guide)
+- [Examples](#examples)
 - [FAQ](#faq)
 - [Support](#support)
 - [Contributing](#contributing)
@@ -34,6 +35,7 @@ ComfyUI_FluxMod acts as a plugin for Flux, enabling you to run Flux Dev and Flux
 It's recommended to use either ComfyUI Manager or Comfy Registry.
 
 ### Via ComfyUI Manager (GUI)
+
 1. Install [ComfyUI Manager](https://github.com/ltdrdata/ComfyUI-Manager) if you haven't already
 2. Open ComfyUI and click on the Manager Button (puzzle piece icon)
 3. Go to "Custom Nodes Manager" tab
@@ -83,6 +85,50 @@ git clone https://github.com/lodestone-rock/ComfyUI_FluxMod.git
 | float8_e4m3fn | 12-16GB         | ~10GB      | ✅          |
 | float8_e5m2   | 12-16GB         | ~10GB      | ❌          |
 
+## Examples
+
+Here are some comparison examples showing the output quality between the original Flux model and FluxMod:
+
+<details>
+<summary><b>Example 1: Art Studio Scene</b></summary>
+
+![Comparison 1](comparison_1.png)
+**Prompt:** A photo of an art studio with a cabin design, there are paint splatters over much of the wooden furnishing, there are old style windows overlooking a lake outside with a slanted ceiling with large skylights letting in natural light. There is an easel with a half-finished painting. There is a paint palette that is placed on a wooden table. There are dust speckles floating in the air illuminated by the golden hour light. There is a woman standing in a colourful dress and ruby red shoes who is painting in front of the easel.
+
+</details>
+
+<details>
+<summary><b>Example 2: Glass Rainbow Room</b></summary>
+
+![Comparison 2](comparison_2.png)
+**Prompt:** A photo of a room with the walls made of millions of pieces of shattered glass in rainbow colours, there is light shining through the glass causing a huge dispersion of colours across the scene. The light is refracting off all the glass in the room illuminating the room with bright hues from the colored glass.
+
+</details>
+
+<details>
+<summary><b>Example 3: Balloon Text</b></summary>
+
+![Comparison 3](comparison_3.png)
+**Prompt:** Text made out of foil balloons saying "Hi there fellow traveller, make sure to star this GitHub! Thank you!"
+
+</details>
+
+<details>
+<summary><b>Example 4: Space Pirate Ship</b></summary>
+
+![Comparison 4](comparison_4.png)
+**Prompt:** Concept art of a ornately decorated pirate ship in outer space that is floating through a nebula with spectacular blue and purple hues. There is dust that is around the ship as it sails through the cosmos, dispersing at the bow of the ship.
+
+</details>
+
+<details>
+<summary><b>Example 5: Detailed Room Scene</b></summary>
+
+![Comparison 5](comparison_5.png)
+**Prompt:** A scene with a blue block and a red ball that is placed on top of the blue block. In the background there is a green door with pink walls. To the left of the door, there is a painting on the wall which is showing a scene of an ocean wave that is orange. To the right of the door, there is a portrait of a cat that has purple eyes. There is a window to the right side of the scene that is letting in light that has a shade of blue, illuminating the carpet which has a cyan hue. There is a bed on the left side of the room that has a white pillow with orange sheets. There is a bedside table with an orange lamp and a phone that is placed on top of it. To the right side of the beside table, there is a green bin with a red recycling logo on it.
+
+</details>
+
 ## FAQ
 
 <details>
@@ -129,4 +175,4 @@ Found a bug? Have a suggestion? Please create a [GitHub issue](https://github.co
 
 ## Sample Workflow
 
-![Workflow Example](https://github.com/lodestone-rock/flux-mod/blob/main/examples/1.png)
+![Workflow Example](https://github.com/lodestone-rock/flux-mod/blob/main/examples/workflow.png)
