@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import torch
 import folder_paths
@@ -75,7 +76,37 @@ class ModelMover:
         )
         return (flux_mod,)
     
+class SkipLayerForward:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "model": ("MODEL", ),
+                "skip_mmdit_layers": ("STRING", {"default": "10", "multiline": False}), 
+                "skip_dit_layers": ("STRING", {"default": "3, 4", "multiline": False})
+            }
+        }
+    
+    RETURN_TYPES = ("MODEL",)
+    RETURN_NAMES = ("model",)
+    FUNCTION = "skip_layer"
+    CATEGORY = "ExtraModels/FluxMod"
+    TITLE = "SkipLayerForward"
 
+    DESCRIPTION = "Prune model layers"
+
+    def skip_layer(self, model, skip_mmdit_layers, skip_dit_layers):
+        
+        skip_mmdit_layers = re.split(r"\s*,\s*", skip_mmdit_layers)
+        skip_mmdit_layers = [int(num) for num in skip_mmdit_layers]
+
+        skip_dit_layers = re.split(r"\s*,\s*", skip_dit_layers)
+        skip_dit_layers = [int(num) for num in skip_dit_layers]
+
+        model.model.diffusion_model.skip_dit = skip_dit_layers
+        model.model.diffusion_model.skip_mmdit = skip_mmdit_layers
+        return (model, )
+    
 
 class KSamplerMod:
     @classmethod
@@ -114,4 +145,5 @@ class KSamplerMod:
 NODE_CLASS_MAPPINGS = {
     "FluxModCheckpointLoader" : FluxModCheckpointLoader,
     "KSamplerMod": KSamplerMod,
+    "SkipLayerForward": SkipLayerForward
 }
