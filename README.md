@@ -85,9 +85,9 @@ git clone https://github.com/lodestone-rock/ComfyUI_FluxMod.git
 
 | Mode          | Recommended GPU | VRAM Usage | Recommended |
 | ------------- | --------------- | ---------- | ----------- |
-| bf16          | 24GB+           | ~20GB      | ✅          |
-| float8_e4m3fn | 12-16GB         | ~13GB      | ✅          |
-| float8_e5m2   | 12-16GB         | ~13GB      | ❌          |
+| bf16          | 24GB+           | ~19GB      | ✅          |
+| float8_e4m3fn | 12-16GB         | ~10GB      | ✅          |
+| float8_e5m2   | 12-16GB         | ~10GB      | ❌          |
 
 ## Examples
 
