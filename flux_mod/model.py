@@ -81,7 +81,9 @@ class FluxMod(nn.Module):
 
         if final_layer:
             self.final_layer = LastLayer(self.hidden_size, 1, self.out_channels, dtype=dtype, device=device, operations=operations)
-    
+
+        self.skip_mmdit = []
+        self.skip_dit = []
     @staticmethod
     def distribute_modulations(tensor: torch.Tensor):
         """
@@ -209,51 +211,53 @@ class FluxMod(nn.Module):
 
         blocks_replace = patches_replace.get("dit", {})
         for i, block in enumerate(self.double_blocks):
-            img_mod = mod_vectors_dict[f"double_blocks.{i}.img_mod.lin"]
-            txt_mod = mod_vectors_dict[f"double_blocks.{i}.txt_mod.lin"]
-            double_mod = [img_mod, txt_mod]
+            if i not in self.skip_mmdit:
+                img_mod = mod_vectors_dict[f"double_blocks.{i}.img_mod.lin"]
+                txt_mod = mod_vectors_dict[f"double_blocks.{i}.txt_mod.lin"]
+                double_mod = [img_mod, txt_mod]
 
-            if ("double_block", i) in blocks_replace:
-                def block_wrap(args):
-                    out = {}
-                    out["img"], out["txt"] = block(img=args["img"], txt=args["txt"], pe=args["pe"], distill_vec=args["distill_vec"])
-                    return out
+                if ("double_block", i) in blocks_replace:
+                    def block_wrap(args):
+                        out = {}
+                        out["img"], out["txt"] = block(img=args["img"], txt=args["txt"], pe=args["pe"], distill_vec=args["distill_vec"])
+                        return out
 
-                out = blocks_replace[("double_block", i)]({"img": img, "txt": txt, "pe": pe, "distill_vec": double_mod}, {"original_block": block_wrap})
-                txt = out["txt"]
-                img = out["img"]
-            else:
-                img, txt = block(img=img, txt=txt, pe=pe, distill_vec=double_mod)
+                    out = blocks_replace[("double_block", i)]({"img": img, "txt": txt, "pe": pe, "distill_vec": double_mod}, {"original_block": block_wrap})
+                    txt = out["txt"]
+                    img = out["img"]
+                else:
+                    img, txt = block(img=img, txt=txt, pe=pe, distill_vec=double_mod)
 
-            if control is not None: # Controlnet
-                control_i = control.get("input")
-                if i < len(control_i):
-                    add = control_i[i]
-                    if add is not None:
-                        img += add
+                if control is not None: # Controlnet
+                    control_i = control.get("input")
+                    if i < len(control_i):
+                        add = control_i[i]
+                        if add is not None:
+                            img += add
 
         img = torch.cat((txt, img), 1)
 
         for i, block in enumerate(self.single_blocks):
-            single_mod = mod_vectors_dict[f"single_blocks.{i}.modulation.lin"]
-            if ("single_block", i) in blocks_replace:
+            if i not in self.skip_dit:
+                single_mod = mod_vectors_dict[f"single_blocks.{i}.modulation.lin"]
+                if ("single_block", i) in blocks_replace:
 
-                def block_wrap(args):
-                    out = {}
-                    out["img"] = block(args["img"], pe=args["pe"], distill_vec=args["distill_vec"])
-                    return out
+                    def block_wrap(args):
+                        out = {}
+                        out["img"] = block(args["img"], pe=args["pe"], distill_vec=args["distill_vec"])
+                        return out
 
-                out = blocks_replace[("single_block", i)]({"img": img, "pe": pe, "distill_vec": single_mod}, {"original_block": block_wrap})
-                img = out["img"]
-            else:
-                img = block(img, pe=pe, distill_vec=single_mod)
+                    out = blocks_replace[("single_block", i)]({"img": img, "pe": pe, "distill_vec": single_mod}, {"original_block": block_wrap})
+                    img = out["img"]
+                else:
+                    img = block(img, pe=pe, distill_vec=single_mod)
 
-            if control is not None: # Controlnet
-                control_o = control.get("output")
-                if i < len(control_o):
-                    add = control_o[i]
-                    if add is not None:
-                        img[:, txt.shape[1] :, ...] += add
+                if control is not None: # Controlnet
+                    control_o = control.get("output")
+                    if i < len(control_o):
+                        add = control_o[i]
+                        if add is not None:
+                            img[:, txt.shape[1] :, ...] += add
 
         img = img[:, txt.shape[1] :, ...]
         final_mod = mod_vectors_dict["final_layer.adaLN_modulation.1"]
