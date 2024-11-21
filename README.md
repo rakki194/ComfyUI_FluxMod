@@ -31,7 +31,17 @@ ComfyUI_FluxMod acts as a plugin for Flux, enabling you to run Flux Dev and Flux
 
 ## Installation
 
-### Via Comfy Registry (Recommended)
+It's recommended to use either ComfyUI Manager or Comfy Registry.
+
+### Via ComfyUI Manager (GUI)
+1. Install [ComfyUI Manager](https://github.com/ltdrdata/ComfyUI-Manager) if you haven't already
+2. Open ComfyUI and click on the Manager Button (puzzle piece icon)
+3. Go to "Custom Nodes Manager" tab
+4. Search for "ComfyUI_FluxMod"
+5. Click Install
+6. Restart ComfyUI
+
+### Via Comfy Registry (CLI)
 
 ```bash
 comfy node registry-install comfyui_fluxmod
