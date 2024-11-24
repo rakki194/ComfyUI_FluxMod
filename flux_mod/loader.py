@@ -85,7 +85,11 @@ def load_flux_mod(model_path, timestep_guidance_path, linear_dtypes=torch.bfloat
     state_dict = load_selected_keys(model_path, ["mod", "time_in", "guidance_in", "vector_in"])
     
     timestep_state_dict = comfy.utils.load_torch_file(timestep_guidance_path)
-      
+    
+    if "v2" in timestep_guidance_path:
+        n_layers = 5
+    else:
+        n_layers = 4
 
     param_count = sum([x.numel() for x in state_dict.values()])
     unet_dtype = torch.bfloat16
@@ -120,7 +124,7 @@ def load_flux_mod(model_path, timestep_guidance_path, linear_dtypes=torch.bfloat
     model.diffusion_model = FluxMod(params=params)
 
     model.diffusion_model.load_state_dict(state_dict)
-    model.diffusion_model.distilled_guidance_layer = Approximator(64, 3072, 5120, 4)
+    model.diffusion_model.distilled_guidance_layer = Approximator(64, 3072, 5120, n_layers)
     model.diffusion_model.distilled_guidance_layer.load_state_dict(timestep_state_dict)
     model.diffusion_model.dtype = unet_dtype
     model.diffusion_model.eval()
