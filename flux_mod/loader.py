@@ -79,7 +79,7 @@ def cast_layers(module, layer_type, dtype, exclude_keywords=[]):
             cast_layers(child, layer_type, dtype, exclude_keywords)
 
 
-def load_flux_mod(model_path, timestep_guidance_path, linear_dtypes=torch.bfloat16):
+def load_flux_mod(model_path, timestep_guidance_path, linear_dtypes=torch.bfloat16, lite_patch_path=None):
 
     # just load safetensors here
     state_dict = load_selected_keys(model_path, ["mod", "time_in", "guidance_in", "vector_in"])
@@ -124,6 +124,14 @@ def load_flux_mod(model_path, timestep_guidance_path, linear_dtypes=torch.bfloat
     model.diffusion_model = FluxMod(params=params, dtype=unet_dtype)
 
     model.diffusion_model.load_state_dict(state_dict)
+    
+    if lite_patch_path is not None:
+        model.diffusion_model.lite = True
+        for _ in range(5,16):
+            del model.diffusion_model.double_blocks[5]
+
+        model.diffusion_model.double_blocks[4].load_state_dict(comfy.utils.load_torch_file(lite_patch_path))
+
     model.diffusion_model.distilled_guidance_layer = Approximator(64, 3072, 5120, n_layers)
     model.diffusion_model.distilled_guidance_layer.load_state_dict(timestep_state_dict)
     model.diffusion_model.dtype = unet_dtype

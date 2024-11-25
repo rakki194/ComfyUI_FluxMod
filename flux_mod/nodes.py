@@ -39,7 +39,45 @@ class FluxModCheckpointLoader:
         flux_mod = load_flux_mod(
             model_path = ckpt_path,
             timestep_guidance_path = guidance_path,
-            linear_dtypes=dtypes[quant_mode]
+            linear_dtypes=dtypes[quant_mode],
+            lite_patch_path=None
+        )
+        return (flux_mod,)
+
+class FluxModCheckpointLoaderMini:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "ckpt_name": (folder_paths.get_filename_list("checkpoints"),),
+                "guidance_name": (folder_paths.get_filename_list("checkpoints"),),
+                "quant_mode": (["bf16", "float8_e4m3fn (8 bit)", "float8_e5m2 (also 8 bit)"],),
+                "lite_patch_ckpt_name": (folder_paths.get_filename_list("checkpoints"),),
+            }
+        }
+    
+
+    RETURN_TYPES = ("MODEL",)
+    RETURN_NAMES = ("model",)
+    FUNCTION = "load_checkpoint"
+    CATEGORY = "ExtraModels/FluxMod"
+    TITLE = "FluxModCheckpointLoaderMini"
+
+    def load_checkpoint(self, ckpt_name, guidance_name, quant_mode, lite_patch_ckpt_name):
+        dtypes = {
+            "bf16": torch.bfloat16, 
+            "float8_e4m3fn (8 bit)": torch.float8_e4m3fn, 
+            "float8_e5m2 (also 8 bit)": torch.float8_e5m2
+        }
+            
+        ckpt_path = folder_paths.get_full_path("checkpoints", ckpt_name)
+        guidance_path = folder_paths.get_full_path("checkpoints", guidance_name)
+        lite_patch_ckpt_name = folder_paths.get_full_path("checkpoints", lite_patch_ckpt_name)
+        flux_mod = load_flux_mod(
+            model_path = ckpt_path,
+            timestep_guidance_path = guidance_path,
+            linear_dtypes=dtypes[quant_mode],
+            lite_patch_path=lite_patch_ckpt_name
         )
         return (flux_mod,)
 
@@ -144,6 +182,7 @@ class KSamplerMod:
     
 NODE_CLASS_MAPPINGS = {
     "FluxModCheckpointLoader" : FluxModCheckpointLoader,
+    "FluxModCheckpointLoaderMini": FluxModCheckpointLoaderMini,
     "KSamplerMod": KSamplerMod,
     "SkipLayerForward": SkipLayerForward
 }

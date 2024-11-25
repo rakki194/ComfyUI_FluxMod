@@ -84,6 +84,7 @@ class FluxMod(nn.Module):
 
         self.skip_mmdit = []
         self.skip_dit = []
+        self.lite = False
     @staticmethod
     def distribute_modulations(tensor: torch.Tensor):
         """
@@ -114,6 +115,9 @@ class FluxMod(nn.Module):
 
         # Add the final layer
         block_dict["final_layer.adaLN_modulation.1"] = None
+        # 6.2b version
+        block_dict["lite_double_blocks.4.img_mod.lin"] = None
+        block_dict["lite_double_blocks.4.txt_mod.lin"] = None
 
 
         idx = 0  # Index to keep track of the vector slices
@@ -164,6 +168,34 @@ class FluxMod(nn.Module):
                 ]
                 idx += 2  # Advance by 3 vectors
 
+            elif "lite_double_blocks.4.img_mod" in key:
+                # Double block: List of 2 ModulationOut
+                double_block = []
+                for _ in range(2):  # Create 2 ModulationOut objects
+                    double_block.append(
+                        ModulationOut(
+                            shift=tensor[:, idx:idx+1, :],
+                            scale=tensor[:, idx+1:idx+2, :],
+                            gate=tensor[:, idx+2:idx+3, :]
+                        )
+                    )
+                    idx += 3  # Advance by 3 vectors per ModulationOut
+                block_dict[key] = double_block
+
+            elif "lite_double_blocks.4.txt_mod" in key:
+                # Double block: List of 2 ModulationOut
+                double_block = []
+                for _ in range(2):  # Create 2 ModulationOut objects
+                    double_block.append(
+                        ModulationOut(
+                            shift=tensor[:, idx:idx+1, :],
+                            scale=tensor[:, idx+1:idx+2, :],
+                            gate=tensor[:, idx+2:idx+3, :]
+                        )
+                    )
+                    idx += 3  # Advance by 3 vectors per ModulationOut
+                block_dict[key] = double_block
+
         return block_dict
 
     def forward_orig(
@@ -187,7 +219,7 @@ class FluxMod(nn.Module):
         # distilled vector guidance
         device = img.device
         dtype = img.dtype
-        mod_index_length = 344
+        mod_index_length = 344 + 12
         distill_timestep = timestep_embedding(torch.tensor(timesteps), 16).to(device=device, dtype=dtype)
         distil_guidance = timestep_embedding(torch.tensor(guidance), 16).to(device=device, dtype=dtype)
         # get all modulation index
@@ -212,8 +244,19 @@ class FluxMod(nn.Module):
         blocks_replace = patches_replace.get("dit", {})
         for i, block in enumerate(self.double_blocks):
             if i not in self.skip_mmdit:
-                img_mod = mod_vectors_dict[f"double_blocks.{i}.img_mod.lin"]
-                txt_mod = mod_vectors_dict[f"double_blocks.{i}.txt_mod.lin"]
+                guidance_index = i
+                # if lite we change block 4 guidance with lite guidance
+                # and offset the guidance by 11 blocks after block 4
+                if self.lite and i == 4:
+                    img_mod = mod_vectors_dict[f"lite_double_blocks.4.img_mod.lin"]
+                    txt_mod = mod_vectors_dict[f"lite_double_blocks.4.txt_mod.lin"]
+                elif self.lite and i > 4:
+                    guidance_index = i + 11 
+                    img_mod = mod_vectors_dict[f"double_blocks.{guidance_index}.img_mod.lin"]
+                    txt_mod = mod_vectors_dict[f"double_blocks.{guidance_index}.txt_mod.lin"]
+                else:
+                    img_mod = mod_vectors_dict[f"double_blocks.{guidance_index}.img_mod.lin"]
+                    txt_mod = mod_vectors_dict[f"double_blocks.{guidance_index}.txt_mod.lin"]
                 double_mod = [img_mod, txt_mod]
 
                 if ("double_block", i) in blocks_replace:
