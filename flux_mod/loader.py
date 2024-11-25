@@ -121,7 +121,7 @@ def load_flux_mod(model_path, timestep_guidance_path, linear_dtypes=torch.bfloat
     )
 
     
-    model.diffusion_model = FluxMod(params=params)
+    model.diffusion_model = FluxMod(params=params, dtype=unet_dtype)
 
     model.diffusion_model.load_state_dict(state_dict)
     model.diffusion_model.distilled_guidance_layer = Approximator(64, 3072, 5120, n_layers)
