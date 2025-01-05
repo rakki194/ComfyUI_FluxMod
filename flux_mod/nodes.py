@@ -7,7 +7,13 @@ import folder_paths
 from .loader import load_flux_mod
 from .sampler import common_ksampler
 import comfy.samplers 
+import comfy.cli_args
+from comfy import model_management
 
+
+def using_scaled_fp8(model_patcher):
+    return (comfy.cli_args.args.fast and
+        model_management.supports_fp8_compute(model_patcher.load_device)) or model_patcher.model.model_config.scaled_fp8
 
 class FluxModCheckpointLoader:
     @classmethod
@@ -173,16 +179,53 @@ class KSamplerMod:
     TITLE = "KSamplerMod"
 
     def sample(self, model, seed, steps, cfg, sampler_name, scheduler, positive, negative, latent_image, denoise=1.0, activation_casting="bf16"):
+        if using_scaled_fp8(model):
+            return common_ksampler(model, seed, steps, cfg, sampler_name, scheduler, positive, negative, latent_image, denoise=denoise)
         dtypes = {
             "bf16": torch.bfloat16, 
             "fp16": torch.float16
         }
         with torch.autocast(device_type="cuda", dtype=dtypes[activation_casting]):
             return common_ksampler(model, seed, steps, cfg, sampler_name, scheduler, positive, negative, latent_image, denoise=denoise)
+
+class FluxModSamplerWrapperNode:
+    RETURN_TYPES = ("SAMPLER",)
+    FUNCTION = "go"
+    CATEGORY = "ExtraModels/FluxMod"
+    TITLE = "FluxModSamplerWrapper"
+    DESCRIPTION = "Enables FluxMod in float8 quant_mode to be used with advanced sampling nodes by wrapping another SAMPLER. If you are using multiple sampler wrappers, put this node closest to SamplerCustom/SamplerCustomAdvanced/etc."
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "sampler": ("SAMPLER",),
+                "activation_casting": (
+                    ("bf16", "fp16"),
+                    {
+                        "default": "bf16",
+                        "tooltip": "Cast model activation to bf16 or fp16. Always use bf16 unless your card does not support it."
+                    },
+                ),
+            },
+        }
+
+    @classmethod
+    def go(cls, *, sampler, activation_casting):
+        dtype = torch.bfloat16 if activation_casting == "bf16" else torch.float16
+        def wrapper(model, *args, **kwargs):
+            if using_scaled_fp8(model.inner_model.model_patcher):
+                return sampler.sampler_function(model, *args, **kwargs)
+            with torch.autocast(device_type=model_management.get_torch_device().type, dtype=dtype):
+                return sampler.sampler_function(model, *args, **kwargs)
+        sampler_wrapper = comfy.samplers.KSAMPLER(wrapper, extra_options=sampler.extra_options, inpaint_options=sampler.inpaint_options)
+        return (sampler_wrapper,)
+
     
 NODE_CLASS_MAPPINGS = {
     "FluxModCheckpointLoader" : FluxModCheckpointLoader,
     "FluxModCheckpointLoaderMini": FluxModCheckpointLoaderMini,
     "KSamplerMod": KSamplerMod,
+    "FluxModSamplerWrapper": FluxModSamplerWrapperNode,
     "SkipLayerForward": SkipLayerForward
 }

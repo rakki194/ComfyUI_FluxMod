@@ -12,7 +12,7 @@ import comfy.model_patcher
 import comfy.model_base
 import comfy.utils
 import comfy.conds
-
+import comfy.ops
 
 
 
@@ -37,7 +37,7 @@ class ExternalFluxModel(comfy.model_base.BaseModel):
         return out
     
 
-def load_selected_keys(filename, exclude_keywords=[]):
+def load_selected_keys(filename, exclude_keywords=()):
     """Loads all keys from a safetensors file except those containing specified keywords.
 
     Args:
@@ -50,13 +50,17 @@ def load_selected_keys(filename, exclude_keywords=[]):
 
     tensors = {}
     with safe_open(filename, framework="pt") as f:
-        for key in f.keys():
+        for orig_key in f.keys():
+            if orig_key.startswith("model.diffusion_model."):
+                key = orig_key[22:]
+            else:
+                key = orig_key
             if not any(keyword in key for keyword in exclude_keywords):
-                tensors[key] = f.get_tensor(key)
+                tensors[key] = f.get_tensor(orig_key)
     return tensors
 
 
-def cast_layers(module, layer_type, dtype, exclude_keywords=[]):
+def cast_layers(module, layer_type, dtype, exclude_keywords=()):
     """Casts layers in a module to the specified dtype, excluding layers with names containing keywords.
 
     Args:
@@ -82,7 +86,7 @@ def cast_layers(module, layer_type, dtype, exclude_keywords=[]):
 def load_flux_mod(model_path, timestep_guidance_path, linear_dtypes=torch.bfloat16, lite_patch_path=None):
 
     # just load safetensors here
-    state_dict = load_selected_keys(model_path, ["mod", "time_in", "guidance_in", "vector_in"])
+    state_dict = load_selected_keys(model_path, {"mod", "time_in", "guidance_in", "vector_in"})
     
     timestep_state_dict = comfy.utils.load_torch_file(timestep_guidance_path)
     
@@ -119,9 +123,19 @@ def load_flux_mod(model_path, timestep_guidance_path, linear_dtypes=torch.bfloat
         model_type=comfy.model_base.ModelType.FLUX,
         device=model_management.get_torch_device()
     )
-
+    unet_config = model_conf.unet_config
+    if model_conf.custom_operations is None:
+        fp8 = model_conf.optimizations.get("fp8", model_conf.scaled_fp8 is not None)
+        operations = comfy.ops.pick_operations(
+            unet_config.get("dtype"),
+            model.manual_cast_dtype,
+            fp8_optimizations=fp8,
+            scaled_fp8=model_conf.scaled_fp8,
+        )
+    else:
+        operations = model_conf.custom_operations
     
-    model.diffusion_model = FluxMod(params=params, dtype=unet_dtype)
+    model.diffusion_model = FluxMod(params=params, dtype=unet_dtype, operations=operations)
 
     model.diffusion_model.load_state_dict(state_dict)
     
@@ -132,14 +146,15 @@ def load_flux_mod(model_path, timestep_guidance_path, linear_dtypes=torch.bfloat
 
         model.diffusion_model.double_blocks[4].load_state_dict(comfy.utils.load_torch_file(lite_patch_path))
 
-    model.diffusion_model.distilled_guidance_layer = Approximator(64, 3072, 5120, n_layers)
+    model.diffusion_model.distilled_guidance_layer = Approximator(64, 3072, 5120, n_layers, operations=operations)
     model.diffusion_model.distilled_guidance_layer.load_state_dict(timestep_state_dict)
     model.diffusion_model.dtype = unet_dtype
     model.diffusion_model.eval()
     model.diffusion_model.to(unet_dtype)
     # we cast to fp8 for mixed matmul ops but omit the picky and sensitive layers
-    cast_layers(model.diffusion_model, nn.Linear, dtype=linear_dtypes, exclude_keywords=["img_in", "final_layer", "scale"])
-    model.diffusion_model
+    cast_layers(model.diffusion_model, nn.Linear, dtype=linear_dtypes, exclude_keywords={"img_in", "final_layer", "scale"})
+    if model_management.force_channels_last():
+        model.diffusion_model.to(memory_format=torch.channels_last)
 
     model_patcher = comfy.model_patcher.ModelPatcher(
         model,
