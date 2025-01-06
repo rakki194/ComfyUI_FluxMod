@@ -8,7 +8,7 @@ A modulation layer addon for Flux that reduces model size to 8.8B parameters wit
 
 ComfyUI_FluxMod acts as a plugin for Flux, enabling you to run Flux Dev and Flux Schnell on more consumer-friendly hardware. This is achieved by utilizing a modulation layer that significantly reduces the parameter count while maintaining quality.
 
-> **Note**: You still need the original Flux Dev or Flux Schnell model to use this addon.
+> **Note**: You still need a Flux Dev or Flux Schnell model to use this addon.
 
 ## Table of Contents
 
@@ -27,7 +27,7 @@ ComfyUI_FluxMod acts as a plugin for Flux, enabling you to run Flux Dev and Flux
 ## Requirements
 
 - ComfyUI installation
-- Original Flux model (Dev or Schnell)
+- Flux model (Dev or Schnell). Tested to work with the original models, may not work with third party versions such as fine tunes.
 - [universal_modulator.safetensors](https://huggingface.co/lodestone-horizon/flux-essence)
 
 ## Installation
@@ -65,13 +65,14 @@ git clone https://github.com/lodestone-rock/ComfyUI_FluxMod.git
 
 | Node                    | Description                              | Options                                                                                                                             |
 | ----------------------- | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| FluxModCheckpointLoader | Primary checkpoint loading node          | • **ckpt_name**: Original Flux model path<br>• **guidance_name**: Modulation addon path<br>• **quant_mode**: Quantization selection |
+| FluxModCheckpointLoader | Primary checkpoint loading node          | • **ckpt_name**: Flux model path<br>• **guidance_name**: Modulation addon path<br>• **quant_mode**: Quantization selection          |
 | KSamplerMod             | Modified KSampler for 8-bit quantization | • **activation_casting**: Switch between bf16 and fp16                                                                              |
+| FluxModSamplerWrapper   | Sampler wrapper for 8-bit quantization   | • **activation_casting**: Switch between bf16 and fp16                                                                              |
 | SkipLayerForward        | Skip specific Flux layers                | • **skip_mmdit_layers**: Which MMDiT layer to skip<br>• **skip_dit_layers**: Which DIT layers to skip (-1 to disable)               |
 
 ## Usage
 
-> ⚠️ **Important**: When using `float8_e4m3fn` or `float8_e5m2` quantization modes, you must use the `KSamplerMod` node instead of the regular KSampler. This requirement does not apply when using `bf16` mode.
+> ⚠️ **Important**: When using `float8_e4m3fn` or `float8_e5m2` quantization modes, you must use either the `KSamplerMod` node instead of the regular KSampler or `FluxModSamplerWrapper` for `SamplerCustom` or other sampler nodes that take a `SAMPLER` input. This requirement does not apply when using `bf16` mode in `FluxModCheckpointLoader` or when starting ComfyUI with `--fast`.
 
 1. Double click workspace → search "FluxModCheckpointLoader"
 2. Select your Flux model in `ckpt_name`

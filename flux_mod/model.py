@@ -220,10 +220,10 @@ class FluxMod(nn.Module):
         device = img.device
         dtype = img.dtype
         mod_index_length = 344 + 12
-        distill_timestep = timestep_embedding(torch.tensor(timesteps), 16).to(device=device, dtype=dtype)
-        distil_guidance = timestep_embedding(torch.tensor(guidance), 16).to(device=device, dtype=dtype)
+        distill_timestep = timestep_embedding(timesteps.detach().clone(), 16).to(device=device, dtype=dtype)
+        distil_guidance = timestep_embedding(guidance.detach().clone(), 16).to(device=device, dtype=dtype)
         # get all modulation index
-        modulation_index = timestep_embedding(torch.tensor(list(range(mod_index_length))), 32).to(device=device, dtype=dtype)
+        modulation_index = timestep_embedding(torch.arange(mod_index_length), 32).to(device=device, dtype=dtype)
         # we need to broadcast the modulation index here so each batch has all of the index
         modulation_index = modulation_index.unsqueeze(0).repeat(img.shape[0], 1, 1)
         # and we need to broadcast timestep and guidance along too
