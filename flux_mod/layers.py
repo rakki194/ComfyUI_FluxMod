@@ -4,7 +4,6 @@ from dataclasses import dataclass
 import torch
 from torch import Tensor, nn
 
-from .math import attention, rope
 import comfy.ops
 import comfy.ldm.common_dit
 from comfy.ldm.flux import layers
@@ -18,6 +17,7 @@ from comfy.ldm.flux.layers import (
     Modulation,
     timestep_embedding,
 )
+from comfy.ldm.flux.math import attention
 
 
 class Approximator(nn.Module):

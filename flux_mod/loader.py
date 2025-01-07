@@ -30,6 +30,7 @@ class ExternalFlux(comfy.supported_models_base.BASE):
     unet_config = {}
     unet_extra_config = {}
     latent_format = comfy.latent_formats.Flux
+    memory_usage_factor = 2.8
       
     def __init__(self,):
         self.unet_config = {}
