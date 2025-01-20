@@ -90,7 +90,9 @@ def load_flux_mod(model_path, timestep_guidance_path, linear_dtypes=torch.bfloat
     
     timestep_state_dict = comfy.utils.load_torch_file(timestep_guidance_path)
     
-    if "v2" in timestep_guidance_path:
+    if "v3" in timestep_guidance_path:
+        n_layers = 6
+    elif "v2" in timestep_guidance_path:
         n_layers = 5
     else:
         n_layers = 4
@@ -109,7 +111,7 @@ def load_flux_mod(model_path, timestep_guidance_path, linear_dtypes=torch.bfloat
         hidden_size=3072,
         mlp_ratio=4.0,
         num_heads=24,
-        depth=19,
+        depth=19 if lite_patch_path is None else 8,
         depth_single_blocks=38,
         axes_dim=[16, 56, 56],
         theta=10_000,
@@ -141,12 +143,12 @@ def load_flux_mod(model_path, timestep_guidance_path, linear_dtypes=torch.bfloat
     
     if lite_patch_path is not None:
         model.diffusion_model.lite = True
-        for _ in range(5,16):
-            del model.diffusion_model.double_blocks[5]
+        # for _ in range(5,16):
+        #     del model.diffusion_model.double_blocks[5]
 
-        model.diffusion_model.double_blocks[4].load_state_dict(comfy.utils.load_torch_file(lite_patch_path))
+        # model.diffusion_model.double_blocks[4].load_state_dict(comfy.utils.load_torch_file(lite_patch_path))
 
-    model.diffusion_model.distilled_guidance_layer = Approximator(64, 3072, 5120, n_layers, operations=operations)
+    model.diffusion_model.distilled_guidance_layer = Approximator(64 if lite_patch_path is None else 32, 3072, 5120, n_layers, operations=operations)
     model.diffusion_model.distilled_guidance_layer.load_state_dict(timestep_state_dict)
     model.diffusion_model.dtype = unet_dtype
     model.diffusion_model.eval()

@@ -86,7 +86,7 @@ class FluxMod(nn.Module):
         self.skip_dit = []
         self.lite = False
     @staticmethod
-    def distribute_modulations(tensor: torch.Tensor):
+    def distribute_modulations(tensor: torch.Tensor, single_block_count: int = 38, double_blocks_count: int = 19):
         """
         Distributes slices of the tensor into the block_dict as ModulationOut objects.
 
@@ -99,25 +99,25 @@ class FluxMod(nn.Module):
 
         # HARD CODED VALUES! lookup table for the generated vectors
         # Add 38 single mod blocks
-        for i in range(38):
+        for i in range(single_block_count):
             key = f"single_blocks.{i}.modulation.lin"
             block_dict[key] = None
 
         # Add 19 image double blocks
-        for i in range(19):
+        for i in range(double_blocks_count):
             key = f"double_blocks.{i}.img_mod.lin"
             block_dict[key] = None
 
         # Add 19 text double blocks
-        for i in range(19):
+        for i in range(double_blocks_count):
             key = f"double_blocks.{i}.txt_mod.lin"
             block_dict[key] = None
 
         # Add the final layer
         block_dict["final_layer.adaLN_modulation.1"] = None
-        # 6.2b version
-        block_dict["lite_double_blocks.4.img_mod.lin"] = None
-        block_dict["lite_double_blocks.4.txt_mod.lin"] = None
+        # # 6.2b version
+        # block_dict["lite_double_blocks.4.img_mod.lin"] = None
+        # block_dict["lite_double_blocks.4.txt_mod.lin"] = None
 
 
         idx = 0  # Index to keep track of the vector slices
@@ -166,35 +166,35 @@ class FluxMod(nn.Module):
                     tensor[:, idx:idx+1, :],
                     tensor[:, idx+1:idx+2, :],
                 ]
-                idx += 2  # Advance by 3 vectors
+                idx += 2  # Advance by 2 vectors
 
-            elif "lite_double_blocks.4.img_mod" in key:
-                # Double block: List of 2 ModulationOut
-                double_block = []
-                for _ in range(2):  # Create 2 ModulationOut objects
-                    double_block.append(
-                        ModulationOut(
-                            shift=tensor[:, idx:idx+1, :],
-                            scale=tensor[:, idx+1:idx+2, :],
-                            gate=tensor[:, idx+2:idx+3, :]
-                        )
-                    )
-                    idx += 3  # Advance by 3 vectors per ModulationOut
-                block_dict[key] = double_block
+            # elif "lite_double_blocks.4.img_mod" in key:
+            #     # Double block: List of 2 ModulationOut
+            #     double_block = []
+            #     for _ in range(2):  # Create 2 ModulationOut objects
+            #         double_block.append(
+            #             ModulationOut(
+            #                 shift=tensor[:, idx:idx+1, :],
+            #                 scale=tensor[:, idx+1:idx+2, :],
+            #                 gate=tensor[:, idx+2:idx+3, :]
+            #             )
+            #         )
+            #         idx += 3  # Advance by 3 vectors per ModulationOut
+            #     block_dict[key] = double_block
 
-            elif "lite_double_blocks.4.txt_mod" in key:
-                # Double block: List of 2 ModulationOut
-                double_block = []
-                for _ in range(2):  # Create 2 ModulationOut objects
-                    double_block.append(
-                        ModulationOut(
-                            shift=tensor[:, idx:idx+1, :],
-                            scale=tensor[:, idx+1:idx+2, :],
-                            gate=tensor[:, idx+2:idx+3, :]
-                        )
-                    )
-                    idx += 3  # Advance by 3 vectors per ModulationOut
-                block_dict[key] = double_block
+            # elif "lite_double_blocks.4.txt_mod" in key:
+            #     # Double block: List of 2 ModulationOut
+            #     double_block = []
+            #     for _ in range(2):  # Create 2 ModulationOut objects
+            #         double_block.append(
+            #             ModulationOut(
+            #                 shift=tensor[:, idx:idx+1, :],
+            #                 scale=tensor[:, idx+1:idx+2, :],
+            #                 gate=tensor[:, idx+2:idx+3, :]
+            #             )
+            #         )
+            #         idx += 3  # Advance by 3 vectors per ModulationOut
+            #     block_dict[key] = double_block
 
         return block_dict
 
@@ -219,11 +219,13 @@ class FluxMod(nn.Module):
         # distilled vector guidance
         device = img.device
         dtype = img.dtype
-        mod_index_length = 344 + 12
-        distill_timestep = timestep_embedding(timesteps.detach().clone(), 16).to(device=device, dtype=dtype)
-        distil_guidance = timestep_embedding(guidance.detach().clone(), 16).to(device=device, dtype=dtype)
+        mod_index_length = 344 if not self.lite else 212
+        distill_timestep = timestep_embedding(timesteps.detach().clone(), 16 if not self.lite else 8).to(device=device, dtype=dtype)
+        # guidance = guidance *
+        distil_guidance = timestep_embedding(guidance.detach().clone(), 16 if not self.lite else 8).to(device=device, dtype=dtype)
+
         # get all modulation index
-        modulation_index = timestep_embedding(torch.arange(mod_index_length), 32).to(device=device, dtype=dtype)
+        modulation_index = timestep_embedding(torch.arange(mod_index_length), 32 if not self.lite else 16).to(device=device, dtype=dtype)
         # we need to broadcast the modulation index here so each batch has all of the index
         modulation_index = modulation_index.unsqueeze(0).repeat(img.shape[0], 1, 1)
         # and we need to broadcast timestep and guidance along too
@@ -233,7 +235,7 @@ class FluxMod(nn.Module):
 
         mod_vectors = self.distilled_guidance_layer(input_vec)
 
-        mod_vectors_dict = self.distribute_modulations(mod_vectors)
+        mod_vectors_dict = self.distribute_modulations(mod_vectors, 38, 19 if not self.lite else 8)
 
 
         txt = self.txt_in(txt)
@@ -247,16 +249,16 @@ class FluxMod(nn.Module):
                 guidance_index = i
                 # if lite we change block 4 guidance with lite guidance
                 # and offset the guidance by 11 blocks after block 4
-                if self.lite and i == 4:
-                    img_mod = mod_vectors_dict[f"lite_double_blocks.4.img_mod.lin"]
-                    txt_mod = mod_vectors_dict[f"lite_double_blocks.4.txt_mod.lin"]
-                elif self.lite and i > 4:
-                    guidance_index = i + 11 
-                    img_mod = mod_vectors_dict[f"double_blocks.{guidance_index}.img_mod.lin"]
-                    txt_mod = mod_vectors_dict[f"double_blocks.{guidance_index}.txt_mod.lin"]
-                else:
-                    img_mod = mod_vectors_dict[f"double_blocks.{guidance_index}.img_mod.lin"]
-                    txt_mod = mod_vectors_dict[f"double_blocks.{guidance_index}.txt_mod.lin"]
+                # if self.lite and i == 4:
+                #     img_mod = mod_vectors_dict[f"lite_double_blocks.4.img_mod.lin"]
+                #     txt_mod = mod_vectors_dict[f"lite_double_blocks.4.txt_mod.lin"]
+                # elif self.lite and i > 4:
+                #     guidance_index = i + 11 
+                #     img_mod = mod_vectors_dict[f"double_blocks.{guidance_index}.img_mod.lin"]
+                #     txt_mod = mod_vectors_dict[f"double_blocks.{guidance_index}.txt_mod.lin"]
+                # else:
+                img_mod = mod_vectors_dict[f"double_blocks.{guidance_index}.img_mod.lin"]
+                txt_mod = mod_vectors_dict[f"double_blocks.{guidance_index}.txt_mod.lin"]
                 double_mod = [img_mod, txt_mod]
 
                 if ("double_block", i) in blocks_replace:
