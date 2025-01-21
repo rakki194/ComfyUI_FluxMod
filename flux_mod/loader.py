@@ -61,7 +61,10 @@ def load_selected_keys(filename, exclude_keywords=(), is_gguf=False):
     global gguf
 
     def is_excluded(key):
-        return any(keyword in key for keyword in exclude_keywords)
+        return (
+            not key.startswith("distilled_guidance_layer.") and
+            any(keyword in key for keyword in exclude_keywords)
+        )
 
     if is_gguf:
         # gguf_sd_loader will strip "model.diffusion_model." if it exists, so no need to handle it here.
@@ -105,23 +108,50 @@ def cast_layers(module, layer_type, dtype, exclude_keywords=()):
             cast_layers(child, layer_type, dtype, exclude_keywords)
 
 
-def load_flux_mod(model_path, timestep_guidance_path, linear_dtypes=torch.bfloat16, lite_patch_path=None, is_gguf=False):
+def load_flux_mod(model_path, timestep_guidance_path=None, linear_dtypes=torch.bfloat16, lite_patch_path=None, is_gguf=False):
 
     if is_gguf:
         ensure_gguf()
     # just load safetensors here
     state_dict = load_selected_keys(model_path, {"mod", "time_in", "guidance_in", "vector_in"}, is_gguf=is_gguf)
-    
-    timestep_state_dict = comfy.utils.load_torch_file(timestep_guidance_path)
-    
-    if "v3" in timestep_guidance_path:
-        n_layers = 6
-    elif "v2" in timestep_guidance_path:
-        n_layers = 5
-    else:
-        n_layers = 4
 
-    param_count = sum([x.numel() for x in state_dict.values()])
+    if timestep_guidance_path is None:
+        # Chroma mode - we expect the timestep guidance to be bundled under
+        # the key distilled_guidance_layer.
+        if lite_patch_path is not None:
+            raise ValueError("Internal error: lite patch specified in Chroma loader mode")
+        timestep_state_dict = {
+            k[25:]: v
+            for k, v in state_dict.items()
+            if k.startswith("distilled_guidance_layer.")
+        }
+        if not timestep_state_dict:
+            raise RuntimeError("Could not find distilled guidance layer in Chroma model")
+        n_layers = 0
+        for key in timestep_state_dict:
+            keysplit = key.split(".", 2)
+            if (
+                len(keysplit) == 3 and
+                keysplit[0] == "norms" and
+                keysplit[1].isnumeric() and
+                keysplit[2] == "scale"
+            ):
+                n_layers = max(n_layers, int(keysplit[1]) + 1)
+            del state_dict[f"distilled_guidance_layer.{key}"]
+        if n_layers == 0:
+            raise RuntimeError("Could not determine number of distilled guidance layers in Chroma model")
+        print(f"\nCHROMA: layers={n_layers}, keys={tuple(timestep_state_dict)}")
+    else:
+        timestep_state_dict = comfy.utils.load_torch_file(timestep_guidance_path)
+
+        if "v3" in timestep_guidance_path:
+            n_layers = 6
+        elif "v2" in timestep_guidance_path:
+            n_layers = 5
+        else:
+            n_layers = 4
+
+    param_count = sum(x.numel() for x in state_dict.values())
     unet_dtype = torch.bfloat16
 
     load_device = model_management.get_torch_device()

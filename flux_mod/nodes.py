@@ -36,7 +36,7 @@ class FluxModCheckpointLoader:
     CATEGORY = "ExtraModels/FluxMod"
     TITLE = "FluxModCheckpointLoader"
 
-    def load_checkpoint(self, ckpt_name, guidance_name, quant_mode, lite_patch_ckpt_name=None):
+    def load_checkpoint(self, *, ckpt_name, quant_mode, guidance_name=None,lite_patch_ckpt_name=None):
         dtypes = {
             "bf16": torch.bfloat16, 
             "float8_e4m3fn (8 bit)": torch.float8_e4m3fn, 
@@ -45,7 +45,10 @@ class FluxModCheckpointLoader:
 
         is_gguf = ckpt_name.lower().endswith(".gguf")
         ckpt_path = folder_paths.get_full_path("unet_gguf" if is_gguf else "checkpoints", ckpt_name)
-        guidance_path = folder_paths.get_full_path("checkpoints", guidance_name)
+        if guidance_name is not None:
+            guidance_path = folder_paths.get_full_path("checkpoints", guidance_name)
+        else:
+            guidance_path = None
         if lite_patch_ckpt_name is not None:
             lite_patch_ckpt_name = folder_paths.get_full_path("checkpoints", lite_patch_ckpt_name)
         flux_mod = load_flux_mod(
@@ -68,6 +71,14 @@ class FluxModCheckpointLoaderMini(FluxModCheckpointLoader):
 
     TITLE = "FluxModCheckpointLoaderMini"
 
+class ChromaCheckpointLoader(FluxModCheckpointLoader):
+    @classmethod
+    def INPUT_TYPES(s):
+        result = super().INPUT_TYPES()
+        del result["required"]["guidance_name"]
+        return result
+
+    TITLE = "ChromaCheckpointLoader"
 
 class ModelMover:
     @classmethod
@@ -206,6 +217,7 @@ class FluxModSamplerWrapperNode:
 NODE_CLASS_MAPPINGS = {
     "FluxModCheckpointLoader" : FluxModCheckpointLoader,
     "FluxModCheckpointLoaderMini": FluxModCheckpointLoaderMini,
+    "ChromaCheckpointLoader": ChromaCheckpointLoader,
     "KSamplerMod": KSamplerMod,
     "FluxModSamplerWrapper": FluxModSamplerWrapperNode,
     "SkipLayerForward": SkipLayerForward
