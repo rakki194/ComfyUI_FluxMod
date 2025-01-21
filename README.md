@@ -29,6 +29,7 @@ ComfyUI_FluxMod acts as a plugin for Flux, enabling you to run Flux Dev and Flux
 - ComfyUI installation
 - Flux model (Dev or Schnell). Tested to work with the original models, may not work with third party versions such as fine tunes.
 - [universal_modulator.safetensors](https://huggingface.co/lodestone-horizon/flux-essence)
+- [ComfyUI-GGUF](https://github.com/city96/ComfyUI-GGUF) installed if you want to use GGUF Flux models.
 
 ## Installation
 

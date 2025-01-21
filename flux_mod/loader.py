@@ -15,11 +15,22 @@ import comfy.conds
 import comfy.ops
 
 
+gguf = None
+
+def ensure_gguf():
+    global gguf
+    if gguf:
+        return
+    import sys
+    gguf = sys.modules.get("ComfyUI-GGUF")
+    if gguf is None:
+        raise RuntimeError("Could not find ComfyUI-GGUF node: GGUF support requires ComfyUI-GGUF")
 
 class ExternalFlux(comfy.supported_models_base.BASE):
     unet_config = {}
     unet_extra_config = {}
     latent_format = comfy.latent_formats.Flux
+    memory_usage_factor = 2.8
       
     def __init__(self,):
         self.unet_config = {}
@@ -37,7 +48,7 @@ class ExternalFluxModel(comfy.model_base.BaseModel):
         return out
     
 
-def load_selected_keys(filename, exclude_keywords=()):
+def load_selected_keys(filename, exclude_keywords=(), is_gguf=False):
     """Loads all keys from a safetensors file except those containing specified keywords.
 
     Args:
@@ -47,7 +58,18 @@ def load_selected_keys(filename, exclude_keywords=()):
     Returns:
         A dictionary containing the loaded tensors.
     """
+    global gguf
 
+    def is_excluded(key):
+        return any(keyword in key for keyword in exclude_keywords)
+
+    if is_gguf:
+        # gguf_sd_loader will strip "model.diffusion_model." if it exists, so no need to handle it here.
+        return {
+            key: value
+            for key, value in gguf.loader.gguf_sd_loader(filename).items()
+            if not is_excluded(key)
+        }
     tensors = {}
     with safe_open(filename, framework="pt") as f:
         for orig_key in f.keys():
@@ -55,7 +77,7 @@ def load_selected_keys(filename, exclude_keywords=()):
                 key = orig_key[22:]
             else:
                 key = orig_key
-            if not any(keyword in key for keyword in exclude_keywords):
+            if not is_excluded(key):
                 tensors[key] = f.get_tensor(orig_key)
     return tensors
 
@@ -83,10 +105,12 @@ def cast_layers(module, layer_type, dtype, exclude_keywords=()):
             cast_layers(child, layer_type, dtype, exclude_keywords)
 
 
-def load_flux_mod(model_path, timestep_guidance_path, linear_dtypes=torch.bfloat16, lite_patch_path=None):
+def load_flux_mod(model_path, timestep_guidance_path, linear_dtypes=torch.bfloat16, lite_patch_path=None, is_gguf=False):
 
+    if is_gguf:
+        ensure_gguf()
     # just load safetensors here
-    state_dict = load_selected_keys(model_path, {"mod", "time_in", "guidance_in", "vector_in"})
+    state_dict = load_selected_keys(model_path, {"mod", "time_in", "guidance_in", "vector_in"}, is_gguf=is_gguf)
     
     timestep_state_dict = comfy.utils.load_torch_file(timestep_guidance_path)
     
@@ -126,6 +150,11 @@ def load_flux_mod(model_path, timestep_guidance_path, linear_dtypes=torch.bfloat
         device=model_management.get_torch_device()
     )
     unet_config = model_conf.unet_config
+    if is_gguf:
+        operations = model_conf.custom_operations = gguf.ops.GGMLOps()
+        modelpatcher_class = gguf.nodes.GGUFModelPatcher
+    else:
+        modelpatcher_class = comfy.model_patcher.ModelPatcher
     if model_conf.custom_operations is None:
         fp8 = model_conf.optimizations.get("fp8", model_conf.scaled_fp8 is not None)
         operations = comfy.ops.pick_operations(
@@ -152,13 +181,14 @@ def load_flux_mod(model_path, timestep_guidance_path, linear_dtypes=torch.bfloat
     model.diffusion_model.distilled_guidance_layer.load_state_dict(timestep_state_dict)
     model.diffusion_model.dtype = unet_dtype
     model.diffusion_model.eval()
-    model.diffusion_model.to(unet_dtype)
-    # we cast to fp8 for mixed matmul ops but omit the picky and sensitive layers
-    cast_layers(model.diffusion_model, nn.Linear, dtype=linear_dtypes, exclude_keywords={"img_in", "final_layer", "scale"})
-    if model_management.force_channels_last():
-        model.diffusion_model.to(memory_format=torch.channels_last)
+    if not is_gguf:
+        model.diffusion_model.to(unet_dtype)
+        # we cast to fp8 for mixed matmul ops but omit the picky and sensitive layers
+        cast_layers(model.diffusion_model, nn.Linear, dtype=linear_dtypes, exclude_keywords={"img_in", "final_layer", "scale"})
+        if model_management.force_channels_last():
+            model.diffusion_model.to(memory_format=torch.channels_last)
 
-    model_patcher = comfy.model_patcher.ModelPatcher(
+    model_patcher = modelpatcher_class(
         model,
         load_device = load_device,
         offload_device = offload_device,

@@ -18,9 +18,12 @@ def using_scaled_fp8(model_patcher):
 class FluxModCheckpointLoader:
     @classmethod
     def INPUT_TYPES(s):
+        checkpoint_paths = folder_paths.get_filename_list("checkpoints")
+        if "unet_gguf" in folder_paths.folder_names_and_paths:
+            checkpoint_paths = checkpoint_paths + folder_paths.get_filename_list("unet_gguf")
         return {
             "required": {
-                "ckpt_name": (folder_paths.get_filename_list("checkpoints"),),
+                "ckpt_name": (checkpoint_paths,),
                 "guidance_name": (folder_paths.get_filename_list("checkpoints"),),
                 "quant_mode": (["bf16", "float8_e4m3fn (8 bit)", "float8_e5m2 (also 8 bit)"],),
             }
@@ -33,59 +36,37 @@ class FluxModCheckpointLoader:
     CATEGORY = "ExtraModels/FluxMod"
     TITLE = "FluxModCheckpointLoader"
 
-    def load_checkpoint(self, ckpt_name, guidance_name, quant_mode):
+    def load_checkpoint(self, ckpt_name, guidance_name, quant_mode, lite_patch_ckpt_name=None):
         dtypes = {
             "bf16": torch.bfloat16, 
             "float8_e4m3fn (8 bit)": torch.float8_e4m3fn, 
             "float8_e5m2 (also 8 bit)": torch.float8_e5m2
         }
-            
-        ckpt_path = folder_paths.get_full_path("checkpoints", ckpt_name)
+
+        is_gguf = ckpt_name.lower().endswith(".gguf")
+        ckpt_path = folder_paths.get_full_path("unet_gguf" if is_gguf else "checkpoints", ckpt_name)
         guidance_path = folder_paths.get_full_path("checkpoints", guidance_name)
+        if lite_patch_ckpt_name is not None:
+            lite_patch_ckpt_name = folder_paths.get_full_path("checkpoints", lite_patch_ckpt_name)
         flux_mod = load_flux_mod(
             model_path = ckpt_path,
             timestep_guidance_path = guidance_path,
             linear_dtypes=dtypes[quant_mode],
-            lite_patch_path=None
+            lite_patch_path=lite_patch_ckpt_name,
+            is_gguf=is_gguf,
         )
         return (flux_mod,)
 
-class FluxModCheckpointLoaderMini:
+class FluxModCheckpointLoaderMini(FluxModCheckpointLoader):
     @classmethod
     def INPUT_TYPES(s):
-        return {
-            "required": {
-                "ckpt_name": (folder_paths.get_filename_list("checkpoints"),),
-                "guidance_name": (folder_paths.get_filename_list("checkpoints"),),
-                "quant_mode": (["bf16", "float8_e4m3fn (8 bit)", "float8_e5m2 (also 8 bit)"],),
-                "lite_patch_ckpt_name": (folder_paths.get_filename_list("checkpoints"),),
-            }
+        result = super().INPUT_TYPES()
+        result["required"] |= {
+            "lite_patch_ckpt_name": (folder_paths.get_filename_list("checkpoints"),),
         }
-    
+        return result
 
-    RETURN_TYPES = ("MODEL",)
-    RETURN_NAMES = ("model",)
-    FUNCTION = "load_checkpoint"
-    CATEGORY = "ExtraModels/FluxMod"
     TITLE = "FluxModCheckpointLoaderMini"
-
-    def load_checkpoint(self, ckpt_name, guidance_name, quant_mode, lite_patch_ckpt_name):
-        dtypes = {
-            "bf16": torch.bfloat16, 
-            "float8_e4m3fn (8 bit)": torch.float8_e4m3fn, 
-            "float8_e5m2 (also 8 bit)": torch.float8_e5m2
-        }
-            
-        ckpt_path = folder_paths.get_full_path("checkpoints", ckpt_name)
-        guidance_path = folder_paths.get_full_path("checkpoints", guidance_name)
-        lite_patch_ckpt_name = folder_paths.get_full_path("checkpoints", lite_patch_ckpt_name)
-        flux_mod = load_flux_mod(
-            model_path = ckpt_path,
-            timestep_guidance_path = guidance_path,
-            linear_dtypes=dtypes[quant_mode],
-            lite_patch_path=lite_patch_ckpt_name
-        )
-        return (flux_mod,)
 
 
 class ModelMover:
