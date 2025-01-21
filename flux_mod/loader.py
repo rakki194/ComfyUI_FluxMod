@@ -136,7 +136,7 @@ def load_flux_mod(model_path, timestep_guidance_path=None, linear_dtypes=torch.b
                 keysplit[1].isnumeric() and
                 keysplit[2] == "scale"
             ):
-                n_layers = int(keysplit[1]) + 1
+                n_layers = max(n_layers, int(keysplit[1]) + 1)
             del state_dict[f"distilled_guidance_layer.{key}"]
         if n_layers == 0:
             raise RuntimeError("Could not determine number of distilled guidance layers in Chroma model")
