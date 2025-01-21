@@ -39,14 +39,24 @@ class ExternalFlux(comfy.supported_models_base.BASE):
     
 
 class ExternalFluxModel(comfy.model_base.BaseModel):
+    chroma_model_mode=False
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
     
     def extra_conds(self, **kwargs):
         out = super().extra_conds(**kwargs)
-        out['guidance'] = comfy.conds.CONDRegular(torch.FloatTensor([kwargs.get("guidance", 3.5)]))
+        if self.chroma_model_mode:
+            guidance = 0.0
+        else:
+            guidance = kwargs.get("guidance", 3.5)
+            if guidance is None:
+                guidance = 0.0
+        out['guidance'] = comfy.conds.CONDRegular(torch.FloatTensor((guidance,)))
         return out
-    
+
+class ChromaFluxModel(ExternalFluxModel):
+        chroma_model_mode=True
 
 def load_selected_keys(filename, exclude_keywords=(), is_gguf=False):
     """Loads all keys from a safetensors file except those containing specified keywords.
@@ -140,7 +150,6 @@ def load_flux_mod(model_path, timestep_guidance_path=None, linear_dtypes=torch.b
             del state_dict[f"distilled_guidance_layer.{key}"]
         if n_layers == 0:
             raise RuntimeError("Could not determine number of distilled guidance layers in Chroma model")
-        print(f"\nCHROMA: layers={n_layers}, keys={tuple(timestep_state_dict)}")
     else:
         timestep_state_dict = comfy.utils.load_torch_file(timestep_guidance_path)
 
@@ -174,7 +183,8 @@ def load_flux_mod(model_path, timestep_guidance_path=None, linear_dtypes=torch.b
     )
 
     model_conf = ExternalFlux()
-    model = ExternalFluxModel(
+    model_class = ChromaFluxModel if timestep_guidance_path is None else ExternalFluxModel
+    model = model_class(
         model_conf,
         model_type=comfy.model_base.ModelType.FLUX,
         device=model_management.get_torch_device()
