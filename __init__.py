@@ -5,10 +5,12 @@ except ImportError:
 	pass
 else:
 	NODE_CLASS_MAPPINGS = {}
+	NODE_DISPLAY_NAME_MAPPINGS = {}
 
 	# FluxDeCLIP
-	from .flux_mod.nodes import NODE_CLASS_MAPPINGS as FluxMod_Nodes
-	NODE_CLASS_MAPPINGS.update(FluxMod_Nodes)
+	from .flux_mod.nodes import NODE_CLASS_MAPPINGS as FluxMod_NodeIds
+	from .flux_mod.nodes import NODE_DISPLAY_NAME_MAPPINGS as FluxMod_NodeNames
+	NODE_CLASS_MAPPINGS.update(FluxMod_NodeIds)
+	NODE_DISPLAY_NAME_MAPPINGS.update(FluxMod_NodeNames)
 
-	NODE_DISPLAY_NAME_MAPPINGS = {k:v.TITLE for k,v in NODE_CLASS_MAPPINGS.items()}
 	__all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS']
