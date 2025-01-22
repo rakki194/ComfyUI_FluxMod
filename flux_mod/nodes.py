@@ -19,13 +19,14 @@ class FluxModDiffusionLoader:
 	NodeName = 'Load FluxMod Diffusion Model'
 	@classmethod
 	def INPUT_TYPES(s):
+		patches = ["None"] + folder_paths.get_filename_list("diffusion_models")
 		checkpoint_paths = folder_paths.get_filename_list("diffusion_models")
 		if "unet_gguf" in folder_paths.folder_names_and_paths:
 			checkpoint_paths = checkpoint_paths + folder_paths.get_filename_list("unet_gguf")
 		return {
 			"required": {
 				"unet_name": (checkpoint_paths,),
-				"guidance_name": (folder_paths.get_filename_list("diffusion_models"),),
+				"guidance_name": (patches,),
 				"quant_mode": (["bf16", "float8_e4m3fn (8 bit)", "float8_e5m2 (also 8 bit)"],),
 			}
 		}
@@ -65,9 +66,10 @@ class FluxModDiffusionLoaderMini(FluxModDiffusionLoader):
 	NodeName = 'Load FluxMod Mini Diffusion Model'
 	@classmethod
 	def INPUT_TYPES(s):
+		patches = ["None"] + folder_paths.get_filename_list("diffusion_models")
 		result = super().INPUT_TYPES()
 		result["required"] |= {
-			"lite_patch_unet_name": (folder_paths.get_filename_list("diffusion_models"),),
+			"lite_patch_unet_name": (patches,),
 		}
 		return result
 
