@@ -84,14 +84,27 @@ def load_selected_keys(filename, exclude_keywords=(), is_gguf=False):
             if not is_excluded(key)
         }
     tensors = {}
-    with safe_open(filename, framework="pt") as f:
-        for orig_key in f.keys():
+    if filename.endswith("pth"):
+        state_dict = torch.load(filename, weights_only=True)
+        for orig_key in state_dict.keys():
             if orig_key.startswith("model.diffusion_model."):
                 key = orig_key[22:]
             else:
                 key = orig_key
             if not is_excluded(key):
-                tensors[key] = f.get_tensor(orig_key)
+                tensors[key] = state_dict[orig_key]
+
+    elif filename.endswith("safetensors"):
+        with safe_open(filename, framework="pt") as f:
+            for orig_key in f.keys():
+                if orig_key.startswith("model.diffusion_model."):
+                    key = orig_key[22:]
+                else:
+                    key = orig_key
+                if not is_excluded(key):
+                    tensors[key] = f.get_tensor(orig_key)
+    else:
+        raise NotImplementedError
     return tensors
 
 
