@@ -85,7 +85,7 @@ def load_selected_keys(filename, exclude_keywords=(), is_gguf=False):
         }
     tensors = {}
     if filename.endswith("pth"):
-        state_dict = torch.load(filename, weights_only=True)
+        state_dict = torch.load(filename, weights_only=True, map_location="cpu")
         for orig_key in state_dict.keys():
             if orig_key.startswith("model.diffusion_model."):
                 key = orig_key[22:]
