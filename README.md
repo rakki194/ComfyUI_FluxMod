@@ -1,3 +1,6 @@
+# For Chroma model please use this workflow instead of following the instruction bellow!
+
+[Chroma_Workflow](https://huggingface.co/lodestones/Chroma/resolve/main/simple_workflow.json)
 # ComfyUI FluxMod 🚀
 
 A modulation layer addon for Flux that reduces model size to 8.8B parameters without significant quality loss.
