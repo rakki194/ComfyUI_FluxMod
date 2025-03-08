@@ -1,10 +1,9 @@
 # Chroma Manual [WIP]
-
-[Chroma_Workflow](https://huggingface.co/lodestones/Chroma/resolve/main/simple_workflow.json)
+Chroma is a 8.9B parameter model based on FLUX.1-schnell.
 
 ### Manual Installation (Chroma)
 
-1. Navigate to your ComfyUI's custom_nodes folder
+1. Navigate to your ComfyUI's `custom_nodes` folder
 2. Clone the repository:
 
 ```bash
@@ -13,6 +12,7 @@ git clone https://github.com/lodestone-rock/ComfyUI_FluxMod.git
 
 3. Restart ComfyUI
 4. Refresh your browser if ComfyUI is already running
+5. load this workflow to your ComfyUI [Chroma_Workflow](https://huggingface.co/lodestones/Chroma/resolve/main/simple_workflow.json)
 
 
 ## Requirements
@@ -23,7 +23,7 @@ git clone https://github.com/lodestone-rock/ComfyUI_FluxMod.git
 - [flux VAE](https://huggingface.co/black-forest-labs/FLUX.1-schnell/resolve/main/ae.safetensors)
 
 
-[WIP] - Chroma instruction manual
+[WIP]
 
 # Do not follow instruction bellow if you want to use Chroma! 
 ---
