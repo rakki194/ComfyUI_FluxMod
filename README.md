@@ -1,6 +1,15 @@
 # Chroma Manual [WIP]
 Chroma is a 8.9B parameter model based on FLUX.1-schnell.
 
+## Requirements
+
+- ComfyUI installation
+- [Chroma checkpoint](https://huggingface.co/lodestones/Chroma).
+- [T5 XXL](https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/t5xxl_fp16.safetensors) or [T5 XXL fp8](https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/t5xxl_fp8_e4m3fn.safetensors)
+- [flux VAE](https://huggingface.co/black-forest-labs/FLUX.1-schnell/resolve/main/ae.safetensors)
+- [Chroma_Workflow](https://huggingface.co/lodestones/Chroma/resolve/main/simple_workflow.json)
+
+
 ### Manual Installation (Chroma)
 
 1. Navigate to your ComfyUI's `custom_nodes` folder
@@ -12,16 +21,7 @@ git clone https://github.com/lodestone-rock/ComfyUI_FluxMod.git
 
 3. Restart ComfyUI
 4. Refresh your browser if ComfyUI is already running
-5. load this workflow to your ComfyUI [Chroma_Workflow](https://huggingface.co/lodestones/Chroma/resolve/main/simple_workflow.json)
-
-
-## Requirements
-
-- ComfyUI installation
-- [Chroma checkpoint](https://huggingface.co/lodestones/Chroma).
-- [T5 XXL](https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/t5xxl_fp16.safetensors) or [T5 XXL fp8](https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/t5xxl_fp8_e4m3fn.safetensors)
-- [flux VAE](https://huggingface.co/black-forest-labs/FLUX.1-schnell/resolve/main/ae.safetensors)
-
+5. load chroma workflow to your ComfyUI 
 
 [WIP]
 
