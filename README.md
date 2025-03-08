@@ -1,4 +1,4 @@
-# For Chroma model please use this workflow instead of following the instruction bellow!
+# Chroma Manual [WIP]
 
 [Chroma_Workflow](https://huggingface.co/lodestones/Chroma/resolve/main/simple_workflow.json)
 
@@ -25,6 +25,7 @@ git clone https://github.com/lodestone-rock/ComfyUI_FluxMod.git
 
 [WIP] - Chroma instruction manual
 
+# Do not follow instruction bellow if you want to use Chroma! 
 ---
 
 # ComfyUI FluxMod 🚀
