@@ -21,7 +21,7 @@ def using_scaled_fp8(model_patcher):
 
 class FluxModDiffusionLoader:
     NodeId = "FluxModDiffusionLoader"
-    NodeName = "Load FluxMod Diffusion Model"
+    NodeName = "FluxMod Unified Model Loader"
 
     @classmethod
     def INPUT_TYPES(s):
@@ -33,7 +33,7 @@ class FluxModDiffusionLoader:
             )
         return {
             "required": {
-                "unet_name": (checkpoint_paths,),
+                "unet_name": (checkpoint_paths, {"tooltip": "This loads both .safetensors and .GGUF models if ComfyUI-GGUF is installed."}),
                 "guidance_name": (patches,),
                 "quant_mode": (
                     ["bf16", "float8_e4m3fn (8 bit)", "float8_e5m2 (also 8 bit)"],
@@ -81,7 +81,7 @@ class FluxModDiffusionLoader:
 
 class FluxModDiffusionLoaderMini(FluxModDiffusionLoader):
     NodeId = "FluxModDiffusionLoaderMini"
-    NodeName = "Load FluxMod Mini Diffusion Model"
+    NodeName = "FluxMod Mini Unified Model Loader"
 
     @classmethod
     def INPUT_TYPES(s):
@@ -95,7 +95,7 @@ class FluxModDiffusionLoaderMini(FluxModDiffusionLoader):
 
 class ChromaDiffusionLoader(FluxModDiffusionLoader):
     NodeId = "ChromaDiffusionLoader"
-    NodeName = "Load Chroma Diffusion Model"
+    NodeName = "Chroma Unified Model Loader"
 
     @classmethod
     def INPUT_TYPES(s):
