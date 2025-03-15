@@ -426,6 +426,7 @@ node_list = [
     FluxModSamplerWrapperNode,
     SkipLayerForward,
     ChromaPromptTruncation,
+    ChromaStyleModelApply,
 ]
 
 NODE_CLASS_MAPPINGS = {}
