@@ -128,6 +128,47 @@ class ChromaPromptTruncation:
         return (c,)
 
 
+class ChromaStyleModelApply:
+    NodeId = "ChromaStyleModelApply"
+    NodeName = "Chroma Style Model"
+
+    @classmethod
+    def INPUT_TYPES(s):
+        return {"required": {"conditioning": ("CONDITIONING", ),
+                             "style_model": ("STYLE_MODEL", ),
+                             "clip_vision_output": ("CLIP_VISION_OUTPUT", ),
+                             "strength": ("FLOAT", {"default": 1.0, "min": -10.0, "max": 10.0, "step": 0.001}),
+                             "truncate_percent": ("FLOAT", {"default": 1.00, "min": -1.0, "max": 1.0, "step": 0.001, "tooltip": "Truncates clipvision conditioning to the first truncate_percent values when > 0. Truncates the last |truncate_percent| values when < 0."}),
+                             }}
+    RETURN_TYPES = ("CONDITIONING",)
+    FUNCTION = "apply_stylemodel"
+
+    CATEGORY = "conditioning/style_model"
+
+    def apply_stylemodel(self, conditioning, style_model, clip_vision_output, strength, truncate_percent):
+        cond = style_model.get_cond(clip_vision_output).flatten(start_dim=0, end_dim=1).unsqueeze(dim=0)
+
+        if truncate_percent < 1.0 and truncate_percent >= 0.0:
+            cond_norm = cond.norm(2) # Take stylemodel cond norm before truncation
+            cond = cond[:, :int(cond.shape[1] * truncate_percent), :] # Take first (729 * truncate_percent) blocks
+            cond *= cond_norm / cond.norm(2) # Re-normalize
+        elif truncate_percent < 0.0 and truncate_percent >= -1.0:
+            cond_norm = cond.norm(2)
+            cond = cond[:, -int(cond.shape[1] * abs(truncate_percent)):, :] # Take last (729 * truncate_percent) blocks
+            cond *= cond_norm / cond.norm(2)
+
+        cond *= strength # Normal strength
+
+        c_out = []
+        for t in conditioning:
+            (txt, keys) = t
+            keys = keys.copy()
+
+            c_out.append([torch.cat((txt, cond), dim=1), keys])
+
+        return (c_out,)
+
+
 class ModelMover:
     NodeId = "ModelMover"
     NodeName = "???"
@@ -385,6 +426,7 @@ node_list = [
     FluxModSamplerWrapperNode,
     SkipLayerForward,
     ChromaPromptTruncation,
+    ChromaStyleModelApply,
 ]
 
 NODE_CLASS_MAPPINGS = {}
