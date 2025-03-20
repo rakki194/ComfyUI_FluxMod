@@ -30,7 +30,7 @@ class ExternalFlux(comfy.supported_models_base.BASE):
     unet_config = {}
     unet_extra_config = {}
     latent_format = comfy.latent_formats.Flux
-    memory_usage_factor = 2.8
+    memory_usage_factor = 2.0 # Lower memory usage factor than FLUX, if we get OOMs this may need to be raised by ~0.2 or so.
       
     def __init__(self,):
         self.unet_config = {}
@@ -174,10 +174,11 @@ def load_flux_mod(model_path, timestep_guidance_path=None, linear_dtypes=torch.b
             n_layers = 4
 
     param_count = sum(x.numel() for x in state_dict.values())
-    unet_dtype = torch.bfloat16
 
     load_device = model_management.get_torch_device()
     offload_device = model_management.unet_offload_device()
+    unet_dtype = model_management.unet_dtype(model_params=param_count)
+    manual_cast_dtype = model_management.unet_manual_cast(unet_dtype, load_device)
 
 
     params=FluxParams(
@@ -196,11 +197,20 @@ def load_flux_mod(model_path, timestep_guidance_path=None, linear_dtypes=torch.b
     )
 
     model_conf = ExternalFlux()
+    if state_dict["scaled_fp8"] is not None:
+        scaled_fp8_weight = state_dict.pop("scaled_fp8")
+        model_conf.scaled_fp8 = scaled_fp8_weight.dtype
+        if model_conf.scaled_fp8 == torch.float32:
+            model_conf.scaled_fp8 = torch.float8_e4m3fn
+        if scaled_fp8_weight.nelement() == 2:
+            model_conf.optimizations["fp8"] = False
+        else:
+            model_conf.optimizations["fp8"] = True
     model_class = ChromaFluxModel if timestep_guidance_path is None else ExternalFluxModel
     model = model_class(
         model_conf,
         model_type=comfy.model_base.ModelType.FLUX,
-        device=model_management.get_torch_device()
+        device=load_device
     )
     unet_config = model_conf.unet_config
     if is_gguf:
@@ -235,9 +245,10 @@ def load_flux_mod(model_path, timestep_guidance_path=None, linear_dtypes=torch.b
     model.diffusion_model.dtype = unet_dtype
     model.diffusion_model.eval()
     if not is_gguf:
-        model.diffusion_model.to(unet_dtype)
-        # we cast to fp8 for mixed matmul ops but omit the picky and sensitive layers
-        cast_layers(model.diffusion_model, nn.Linear, dtype=linear_dtypes, exclude_keywords={"img_in", "final_layer", "scale"})
+        if model_conf.scaled_fp8 is None:
+            #model.diffusion_model.to(linear_dtypes)
+            # we cast to fp8 for mixed matmul ops but omit the picky and sensitive layers
+            cast_layers(model.diffusion_model, nn.Linear, dtype=linear_dtypes, exclude_keywords={"img_in", "txt_in", "final_layer", "in_proj", "in_layer", "out_layer", "out_proj"})
         if model_management.force_channels_last():
             model.diffusion_model.to(memory_format=torch.channels_last)
 
