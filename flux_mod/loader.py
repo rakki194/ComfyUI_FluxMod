@@ -22,12 +22,10 @@ def ensure_gguf():
     if gguf:
         return
     import sys
-    gguf = sys.modules.get("ComfyUI-GGUF")
-
-    gguf.loader = sys.modules.get("ComfyUI-GGUF.loader")
-    gguf.ops = sys.modules.get("ComfyUI-GGUF.ops")
-    gguf.nodes = sys.modules.get("ComfyUI-GGUF.nodes")
-    
+    gguf = next(
+        (mod for path, mod in sys.modules.items() if path.endswith("ComfyUI-GGUF")),
+        None
+    )
     if gguf is None:
         raise RuntimeError("Could not find ComfyUI-GGUF node: GGUF support requires ComfyUI-GGUF")
 
