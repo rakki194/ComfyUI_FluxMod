@@ -1,7 +1,7 @@
 [project]
-name = "comfyui_fluxmod"
-description = ""
-version = "1.0.0"
+name = "ComfyUI_FluxMod"
+description = "Nodes for use of Chroma model and other prototype models"
+version = "1.0.1"
 license = {file = "LICENSE"}
 
 [project.urls]
@@ -9,6 +9,6 @@ Repository = "https://github.com/lodestone-rock/ComfyUI_FluxMod"
 #  Used by Comfy Registry https://comfyregistry.org
 
 [tool.comfy]
-PublisherId = "horizon"
+PublisherId = "lodestone-rock"
 DisplayName = "ComfyUI_FluxMod"
 Icon = ""
