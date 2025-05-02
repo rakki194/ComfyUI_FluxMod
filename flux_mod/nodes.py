@@ -124,6 +124,8 @@ class ChromaPromptTruncation:
     def append(self, conditioning):
         pruning_idx = conditioning[0][1]["attention_mask"].sum() + 1
         conditioning[0][0] = conditioning[0][0][:, :pruning_idx]
+        del conditioning[0][1]["attention_mask"]
+        conditioning[0][1]["pooled_output"] = torch.zeros(1, 768, dtype=torch.float32)
         c = node_helpers.conditioning_set_values(conditioning, {"guidance": 0})
         return (c,)
 
